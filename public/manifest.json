@@ -1,0 +1,21 @@
+{
+  "name": "FruitLane B2B Wholesale",
+  "short_name": "FruitLane",
+  "description": "B2B fruit wholesale ordering, daily market prices, and delivery tracking for retailers.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f5ed",
+  "theme_color": "#155b38",
+  "categories": ["business", "shopping", "food"],
+  "icons": [
+    {
+      "src": "/fruitlane-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Environment variables - NEVER upload these, they contain passwords!
+.env
+backend/.env
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Private keys
+*.pem
+
+# Temporary files
+.sheet-work/
+outputs/

@@ -1,0 +1,111 @@
+{
+  "users": [
+    {
+      "Username": "8984162299",
+      "Password": "123456",
+      "Role": "Retailer"
+    },
+    {
+      "Username": "8984162299",
+      "Password": "123456",
+      "Role": "Retailer"
+    },
+    {
+      "Username": "8984162299",
+      "Password": "123456",
+      "Role": "Retailer"
+    },
+    {
+      "Username": "8984162295",
+      "Password": "123456",
+      "Role": "Retailer"
+    },
+    {
+      "Username": "8984162295",
+      "Password": "123456",
+      "Role": "Retailer"
+    },
+    {
+      "Username": "8984162299",
+      "Password": "123456",
+      "Role": "Retailer"
+    }
+  ],
+  "retailers": [
+    {
+      "MobileNumber": "8984162299",
+      "RetailerName": "SURAJ KUMAR SAHOO",
+      "ShopName": "FGHXHBBBX",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:10:00.414Z"
+    },
+    {
+      "MobileNumber": "8984162299",
+      "RetailerName": "SURAJ KUMAR SAHOO",
+      "ShopName": "FGHXHBBBX",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:10:12.818Z"
+    },
+    {
+      "MobileNumber": "8984162299",
+      "RetailerName": "SURAJ KUMAR SAHOO",
+      "ShopName": "FGHXHBBBX",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:10:29.857Z"
+    },
+    {
+      "MobileNumber": "8984162295",
+      "RetailerName": "SURAJ KUMAR SAHOO",
+      "ShopName": "FGHXHBBBX",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:10:43.526Z"
+    },
+    {
+      "MobileNumber": "8984162295",
+      "RetailerName": "SURAJ KUMAR SAHOO",
+      "ShopName": "FGHXHBBBX",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:19:50.521Z"
+    },
+    {
+      "MobileNumber": "8984162299",
+      "RetailerName": "eeeeee",
+      "ShopName": "eeeeerrtt",
+      "Address": "Fakirpada",
+      "CreatedDate": "2026-07-18T18:26:50.890Z"
+    }
+  ],
+  "fruits": [
+    {
+      "FruitID": "FR001",
+      "FruitName": "melon",
+      "PackageType": "20kg",
+      "AvailableQuantity": 123,
+      "Price": 1234,
+      "CreatedDate": "2026-07-18T18:08:03.239Z"
+    },
+    {
+      "FruitID": "FR002",
+      "FruitName": "melon",
+      "PackageType": "20kg",
+      "AvailableQuantity": 68,
+      "Price": 2334,
+      "CreatedDate": "2026-07-18T18:21:19.596Z"
+    }
+  ],
+  "orders": [
+    {
+      "OrderID": "ORD00001",
+      "RetailerMobile": "9861374962",
+      "RetailerName": "suraj kumar sahoo",
+      "FruitID": "FR001",
+      "FruitName": "Kashmiri Gala Apples",
+      "PackageType": "20 KG Box",
+      "Quantity": 2,
+      "Price": 2180,
+      "Total": 4360,
+      "Status": "Pending",
+      "OrderDate": "2026-07-18T18:28:50.936Z"
+    }
+  ]
+}
