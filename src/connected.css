@@ -189,6 +189,35 @@
 }
 
 @media (max-width: 530px) {
+  .product {
+    grid-template-columns: 105px 1fr !important;
+  }
+  .product-body {
+    padding: 10px 12px !important;
+  }
+  .product-bottom {
+    gap: 4px !important;
+    justify-content: space-between !important;
+  }
+  .product-bottom > .pill {
+    display: none !important;
+  }
+  .product-bottom > span {
+    font-size: 10px !important;
+  }
+  .quantity-stepper {
+    min-width: 92px !important;
+    padding: 2px 4px !important;
+  }
+  .quantity-stepper .stepper-btn {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .quantity-stepper .stepper-count {
+    font-size: 14px !important;
+    padding: 0 4px !important;
+    min-width: 18px !important;
+  }
   .offer-carousel-section {
     width: calc(100% - 24px) !important;
     margin: 12px auto 0 !important;
