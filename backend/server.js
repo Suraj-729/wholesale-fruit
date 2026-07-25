@@ -5,6 +5,7 @@ import morgan from "morgan";
 import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
@@ -58,7 +59,19 @@ const possibleDistPaths = [
   path.join(__dirname, "dist"),
   path.join(process.cwd(), "dist")
 ];
-const distPath = possibleDistPaths.find((p) => fs.existsSync(p)) || path.join(__dirname, "../dist");
+let distPath = possibleDistPaths.find((p) => fs.existsSync(p)) || path.join(process.cwd(), "dist");
+
+// If dist/index.html is not found, automatically trigger Vite build on startup
+if (!fs.existsSync(path.join(distPath, "index.html"))) {
+  console.log("dist/index.html not found. Building frontend now...");
+  try {
+    const rootDir = fs.existsSync(path.join(__dirname, "../package.json")) ? path.join(__dirname, "..") : process.cwd();
+    execSync("npx vite build", { stdio: "inherit", cwd: rootDir });
+    distPath = possibleDistPaths.find((p) => fs.existsSync(p)) || distPath;
+  } catch (err) {
+    console.error("Auto build failed:", err.message);
+  }
+}
 
 app.use(express.static(distPath));
 
@@ -68,7 +81,7 @@ app.get("*", (_req, res) => {
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send("API server is running. Frontend build (dist/index.html) not found.");
+    res.status(404).send("API server is running, but frontend build (dist/index.html) is missing. Please run 'npm run build' on the server.");
   }
 });
 
