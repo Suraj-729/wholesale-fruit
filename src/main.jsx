@@ -31,7 +31,7 @@ const getFruitShade = (name) => {
   return "melon";
 };
 
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api";
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const fallbackFruits = [
   { FruitID: "FR001", FruitName: "Kashmiri Gala Apples", PackageType: "20 KG Box", AvailableQuantity: 70, Price: 2180, CreatedDate: "2026-07-01" },
@@ -502,12 +502,47 @@ function Login({ close, request, onSuccess, notice }) {
 function App() {
   const [page, setPage] = useState("market");
   const [fruits, setFruits] = useState(fallbackFruits);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fruitlane_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fruitlane_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [noticeState, setNoticeState] = useState(null);
+
+  useEffect(() => {
+    try {
+      if (user) {
+        localStorage.setItem("fruitlane_user", JSON.stringify(user));
+      } else {
+        localStorage.removeItem("fruitlane_user");
+      }
+    } catch {
+      // Handle quota errors silently
+    }
+  }, [user]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fruitlane_cart", JSON.stringify(cart));
+    } catch {
+      // Handle quota errors silently
+    }
+  }, [cart]);
+
   const notice = (message, error = false) => { setNoticeState({ message, error }); window.setTimeout(() => setNoticeState(null), 4500); };
   const request = async (path, options = {}) => {
     const response = await fetch(`${apiUrl}${path}`, {
@@ -538,9 +573,31 @@ function App() {
     return () => clearInterval(interval);
   }, []);
   const add = (fruit) => { setCart([...cart, fruit]); setCartOpen(true); };
-  const checkout = async () => { const grouped = Object.values(cart.reduce((all, fruit) => { all[fruit.FruitID] = all[fruit.FruitID] || { fruit, quantity: 0 }; all[fruit.FruitID].quantity += 1; return all; }, {})); try { await Promise.all(grouped.map(({ fruit, quantity }) => request("/orders", { method: "POST", body: JSON.stringify({ retailerMobile: user.mobileNumber, fruitId: fruit.FruitID, quantity }) }))); setCart([]); setCartOpen(false); notice("COD order placed. The wholesaler can now approve it."); loadFruits(); } catch (error) { notice(error.message, true); } };
+  const checkout = async () => {
+    const grouped = Object.values(cart.reduce((all, fruit) => { all[fruit.FruitID] = all[fruit.FruitID] || { fruit, quantity: 0 }; all[fruit.FruitID].quantity += 1; return all; }, {}));
+    try {
+      await Promise.all(grouped.map(({ fruit, quantity }) => request("/orders", { method: "POST", body: JSON.stringify({ retailerMobile: user.mobileNumber, fruitId: fruit.FruitID, quantity }) })));
+      setCart([]);
+      try { localStorage.removeItem("fruitlane_cart"); } catch {}
+      setCartOpen(false);
+      notice("COD order placed. The wholesaler can now approve it.");
+      loadFruits();
+    } catch (error) {
+      notice(error.message, true);
+    }
+  };
+  const handleLogout = () => {
+    setUser(null);
+    setCart([]);
+    try {
+      localStorage.removeItem("fruitlane_user");
+      localStorage.removeItem("fruitlane_cart");
+    } catch {}
+    setPage("market");
+    notice("You have been logged out.");
+  };
   const openAdmin = () => { if (user?.role === "Admin") setPage("admin"); else setLoginOpen(true); };
-  return <><Header page={page} setPage={setPage} cart={cart} user={user} onCart={() => setCartOpen(true)} onLogin={() => setLoginOpen(true)} onLogout={() => { setUser(null); setPage("market"); notice("You have been logged out."); }} onAdmin={openAdmin} />{page === "market" && <Market fruits={fruits} loading={loading} add={add} />}{page === "admin" && user?.role === "Admin" && <Admin user={user} fruits={fruits} loading={loading} request={request} refresh={loadFruits} notice={notice} />}{page === "delivery" && user?.role === "Admin" && <Orders request={request} notice={notice} />}{page === "my-orders" && user?.role === "Retailer" && <RetailerOrders user={user} request={request} notice={notice} />}<footer><Brand /><span>Fresh produce, fairly traded.</span><span>2026 FruitLane</span></footer>{cartOpen && <Cart items={cart} remove={(index) => setCart(cart.filter((_, itemIndex) => itemIndex !== index))} close={() => setCartOpen(false)} checkout={checkout} user={user} onLogin={() => { setCartOpen(false); setLoginOpen(true); }} />}{loginOpen && <Login close={() => setLoginOpen(false)} request={request} onSuccess={(nextUser) => { setUser(nextUser); if (nextUser.role === "Admin") setPage("admin"); }} notice={notice} />}{noticeState && <div className={`toast ${noticeState.error ? "error" : ""}`}>{noticeState.message}</div>}</>;
+  return <><Header page={page} setPage={setPage} cart={cart} user={user} onCart={() => setCartOpen(true)} onLogin={() => setLoginOpen(true)} onLogout={handleLogout} onAdmin={openAdmin} />{page === "market" && <Market fruits={fruits} loading={loading} add={add} />}{page === "admin" && user?.role === "Admin" && <Admin user={user} fruits={fruits} loading={loading} request={request} refresh={loadFruits} notice={notice} />}{page === "delivery" && user?.role === "Admin" && <Orders request={request} notice={notice} />}{page === "my-orders" && user?.role === "Retailer" && <RetailerOrders user={user} request={request} notice={notice} />}<footer><Brand /><span>Fresh produce, fairly traded.</span><span>2026 FruitLane</span></footer>{cartOpen && <Cart items={cart} remove={(index) => setCart(cart.filter((_, itemIndex) => itemIndex !== index))} close={() => setCartOpen(false)} checkout={checkout} user={user} onLogin={() => { setCartOpen(false); setLoginOpen(true); }} />}{loginOpen && <Login close={() => setLoginOpen(false)} request={request} onSuccess={(nextUser) => { setUser(nextUser); if (nextUser.role === "Admin") setPage("admin"); }} notice={notice} />}{noticeState && <div className={`toast ${noticeState.error ? "error" : ""}`}>{noticeState.message}</div>}</>;
 }
 
 createRoot(document.getElementById("root")).render(<App />);
