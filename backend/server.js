@@ -17,11 +17,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = Number(process.env.PORT || 5000);
+const port = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB Atlas"))
-  .catch((err) => console.error("Could not connect to MongoDB:", err));
+process.on("uncaughtException", (err) => console.error("Uncaught Exception:", err));
+process.on("unhandledRejection", (err) => console.error("Unhandled Rejection:", err));
+
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log("Connected to MongoDB Atlas"))
+    .catch((err) => console.error("Could not connect to MongoDB:", err));
+} else {
+  console.warn("MONGODB_URI is missing in environment variables!");
+}
 
 const allowedOrigins = process.env.CLIENT_ORIGIN?.split(",") || [];
 app.use(cors({
@@ -68,4 +75,4 @@ app.get("*", (_req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(port, "0.0.0.0", () => console.log(`FruitLane listening on http://0.0.0.0:${port}`));
+app.listen(port, () => console.log(`FruitLane listening on port ${port}`));
