@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
@@ -45,12 +46,23 @@ app.use("/api/retailers", retailerRoutes);
 app.use("/api/orders", orderRoutes);
 
 // Serve React frontend (production build)
-const distPath = path.join(__dirname, "../dist");
+const possibleDistPaths = [
+  path.join(__dirname, "../dist"),
+  path.join(__dirname, "dist"),
+  path.join(process.cwd(), "dist")
+];
+const distPath = possibleDistPaths.find((p) => fs.existsSync(p)) || path.join(__dirname, "../dist");
+
 app.use(express.static(distPath));
 
 // For any non-API route, serve the React index.html (client-side routing)
 app.get("*", (_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+  const indexPath = path.join(distPath, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("API server is running. Frontend build (dist/index.html) not found.");
+  }
 });
 
 app.use(notFound);
