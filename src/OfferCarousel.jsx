@@ -9,7 +9,7 @@ export function OfferCarousel({ banners = [], onBannerClick }) {
 
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % banners.length);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [banners]);
