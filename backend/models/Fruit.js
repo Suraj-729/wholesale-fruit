@@ -6,6 +6,7 @@ const fruitSchema = new mongoose.Schema({
   PackageType: { type: String, required: true },
   AvailableQuantity: { type: Number, required: true },
   Price: { type: Number, required: true },
+  imageUrl: { type: String, default: "" },
   CreatedDate: { type: String, required: true },
 });
 

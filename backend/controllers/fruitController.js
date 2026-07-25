@@ -2,11 +2,22 @@ import Fruit from "../models/Fruit.js";
 import { badRequest, notFoundError } from "../middleware/errorHandler.js";
 
 function fruitInput(body) {
-  const { fruitName, packageType, availableQuantity, price } = body;
+  const { fruitName, packageType, availableQuantity, price, imageUrl } = body;
   if (!fruitName?.trim() || !packageType?.trim()) throw badRequest("Fruit name and package type are required.");
   if (!Number.isFinite(Number(availableQuantity)) || Number(availableQuantity) < 0) throw badRequest("Available quantity must be zero or greater.");
   if (!Number.isFinite(Number(price)) || Number(price) < 0) throw badRequest("Price must be zero or greater.");
-  return { FruitName: fruitName.trim(), PackageType: packageType.trim(), AvailableQuantity: Number(availableQuantity), Price: Number(price) };
+  
+  if (imageUrl && imageUrl.length > 1400000) {
+    throw badRequest("Fruit image file size exceeds the 1MB limit. Please upload a smaller image.");
+  }
+
+  return {
+    FruitName: fruitName.trim(),
+    PackageType: packageType.trim(),
+    AvailableQuantity: Number(availableQuantity),
+    Price: Number(price),
+    imageUrl: imageUrl || ""
+  };
 }
 
 async function getNextFruitId() {
@@ -42,6 +53,7 @@ export async function editFruit(req, res) {
       packageType: fruit.PackageType,
       availableQuantity: fruit.AvailableQuantity,
       price: fruit.Price,
+      imageUrl: fruit.imageUrl,
       ...req.body,
     }),
     { new: true }
