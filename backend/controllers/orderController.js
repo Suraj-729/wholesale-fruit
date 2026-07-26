@@ -49,14 +49,21 @@ export async function createOrder(req, res) {
   if (!retailer) throw notFoundError("Retailer was not found.");
   if (!fruit) throw notFoundError("Fruit was not found.");
   
-  const stock = Number(fruit.AvailableQuantity);
-  if (orderQuantity > stock) throw badRequest(`Only ${stock} boxes are available.`);
-  
+  // Atomic stock check & deduction in a single isolated MongoDB operation
+  const updatedFruit = await Fruit.findOneAndUpdate(
+    { FruitID: fruit.FruitID, AvailableQuantity: { $gte: orderQuantity } },
+    { $inc: { AvailableQuantity: -orderQuantity } },
+    { new: true }
+  );
+
+  if (!updatedFruit) {
+    const currentFruit = await Fruit.findOne({ FruitID: fruit.FruitID });
+    const currentStock = currentFruit ? Number(currentFruit.AvailableQuantity) : 0;
+    throw badRequest(`Insufficient stock! Only ${currentStock} box(es) available.`);
+  }
+
   const price = Number(fruit.Price);
   const now = new Date();
-
-  // Deduct stock first
-  await Fruit.findOneAndUpdate({ FruitID: fruit.FruitID }, { AvailableQuantity: stock - orderQuantity });
   
   let order;
   let attempts = 0;
@@ -97,8 +104,8 @@ export async function createOrder(req, res) {
         await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 50) + 20));
         continue;
       }
-      // Rollback stock if unrecoverable error
-      await Fruit.findOneAndUpdate({ FruitID: fruit.FruitID }, { AvailableQuantity: stock });
+      // Rollback stock using $inc if unrecoverable error
+      await Fruit.findOneAndUpdate({ FruitID: fruit.FruitID }, { $inc: { AvailableQuantity: orderQuantity } });
       throw error;
     }
   }

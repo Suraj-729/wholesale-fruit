@@ -16,6 +16,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import retailerRoutes from "./routes/retailerRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import bannerRoutes from "./routes/bannerRoutes.js";
+import { initPushScheduler } from "./services/pushScheduler.js";
 import User from "./models/User.js";
 import Fruit from "./models/Fruit.js";
 import Banner from "./models/Banner.js";
@@ -148,6 +149,7 @@ if (process.env.MONGODB_URI) {
     .then(() => {
       console.log("Connected to MongoDB Atlas");
       ensureSeedData();
+      initPushScheduler(app);
     })
     .catch((err) => console.error("Could not connect to MongoDB:", err));
 } else {

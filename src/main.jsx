@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { io } from "socket.io-client";
-import { ArrowRight, ArrowUp, Bell, Box, CalendarDays, Check, ChevronDown, CircleCheck, Clock3, Eye, GripVertical, Image, LayoutDashboard, MapPin, Menu, Minus, Package, PackageCheck, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, Truck, Upload, Users, X, XCircle, Zap } from "lucide-react";
+import { ArrowRight, ArrowUp, Bell, Box, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Clock3, Eye, GripVertical, Image, LayoutDashboard, MapPin, Megaphone, Menu, Minus, Package, PackageCheck, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, Truck, Upload, Users, X, XCircle, Zap } from "lucide-react";
 import "./styles.css";
 import "./connected.css";
 
@@ -143,11 +143,61 @@ function Header({ page, setPage, cartTotalCount, user, notifications, unreadCoun
   </div></header>;
 }
 
-function Product({ fruit, quantityInCart, onUpdateQuantity }) {
+function MobilePushNotificationBanner({ notification, onClose, onAction }) {
+  if (!notification) return null;
+
+  return (
+    <div className="mobile-push-overlay">
+      <div className="mobile-push-card">
+        <div className="mobile-push-header">
+          <div className="mobile-push-brand">
+            <span className="mobile-push-brand-icon">F</span>
+            FruitLane Wholesale
+          </div>
+          <span className="mobile-push-time">Just now</span>
+          <button className="mobile-push-close" onClick={onClose} title="Close notification">
+            <X size={16} />
+          </button>
+        </div>
+
+        {notification.imageUrl && (
+          <img
+            src={notification.imageUrl}
+            alt={notification.title}
+            className="mobile-push-banner"
+          />
+        )}
+
+        <div className="mobile-push-body">
+          <h4 className="mobile-push-title">{notification.title}</h4>
+          <p className="mobile-push-msg">{notification.message}</p>
+        </div>
+
+        <div className="mobile-push-actions">
+          <button
+            className="mobile-push-btn-primary"
+            onClick={() => {
+              if (onAction) onAction(notification);
+              onClose();
+            }}
+          >
+            <ShoppingCart size={15} /> {notification.actionText || "Order Now"}
+          </button>
+          <button className="mobile-push-btn-secondary" onClick={onClose}>
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Product({ fruit, quantityInCart, onUpdateQuantity, user }) {
   const shade = getFruitShade(fruit.FruitName);
   const stock = Number(fruit.AvailableQuantity);
   const isOutOfStock = stock <= 0;
   const isLowStock = stock > 0 && stock <= 10;
+  const isAdmin = user?.role === "Admin";
 
   return (
     <article className={`product ${isOutOfStock ? "out-of-stock-card" : ""}`}>
@@ -164,15 +214,21 @@ function Product({ fruit, quantityInCart, onUpdateQuantity }) {
       <div className="product-body">
         <div className="name">
           <h3>{fruit.FruitName}</h3>
-          <small className={isOutOfStock ? "stock-tag red" : "stock-tag green"}>
-            {isOutOfStock ? "0 boxes left" : `${stock} boxes left`}
-          </small>
+          {isAdmin ? (
+            <small className={isOutOfStock ? "stock-tag red" : "stock-tag green"}>
+              {isOutOfStock ? "0 boxes left" : `${stock} boxes left`}
+            </small>
+          ) : (
+            <small className="stock-tag green">{isOutOfStock ? "Out of Stock" : "In Stock"}</small>
+          )}
         </div>
         <p className="origin"><Box size={14} />{fruit.PackageType}</p>
         <div className="price"><strong>{money.format(Number(fruit.Price))}</strong><span>/ box</span></div>
         <div className="product-bottom">
           <Pill>{fruit.FruitID}</Pill>
-          <span>Available: <b style={{ color: isOutOfStock ? "#d9381e" : "#175c39" }}>{stock}</b></span>
+          {isAdmin && (
+            <span>Available: <b style={{ color: isOutOfStock ? "#d9381e" : "#175c39" }}>{stock}</b></span>
+          )}
           {quantityInCart > 0 && !isOutOfStock ? (
             <QuantityStepper 
               quantity={quantityInCart} 
@@ -197,14 +253,14 @@ function Product({ fruit, quantityInCart, onUpdateQuantity }) {
   );
 }
 
-function Market({ fruits, loading, banners, getCartQuantity, onUpdateQuantity }) {
+function Market({ fruits, loading, banners, getCartQuantity, onUpdateQuantity, user }) {
   const [search, setSearch] = useState("");
   const list = useMemo(() => fruits.filter((fruit) => `${fruit.FruitName} ${fruit.PackageType}`.toLowerCase().includes(search.toLowerCase())), [fruits, search]);
   return <main>
     <OfferCarousel banners={banners} />
 
     <section className="quick-stats"><Stat icon={<CalendarDays />} top="Live inventory" bottom="From the Fruits sheet" /><Stat icon={<Box />} top={`${fruits.length} fruit lots`} bottom="Updated by wholesaler" /><Stat icon={<Truck />} top="COD available" bottom="Pay on delivery" /></section>
-    <section className="catalog" id="catalog"><div className="section-title"><div><Pill>Today's wholesale catalog</Pill><h2>Buy by the crate, <em>save on every order.</em></h2></div></div><div className="tools"><label><Search size={20} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search fruit or package type" /></label><span><i /> {loading ? "Refreshing inventory..." : "Live inventory from warehouse"}</span></div><div className="product-grid">{list.map((fruit) => <Product key={fruit.FruitID} fruit={fruit} quantityInCart={getCartQuantity(fruit.FruitID)} onUpdateQuantity={onUpdateQuantity} />)}</div>{!loading && list.length === 0 && <div className="no-results">No matching fresh lots today.</div>}</section>
+    <section className="catalog" id="catalog"><div className="section-title"><div><Pill>Today's wholesale catalog</Pill><h2>Buy by the crate, <em>save on every order.</em></h2></div></div><div className="tools"><label><Search size={20} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search fruit or package type" /></label><span><i /> {loading ? "Refreshing inventory..." : "Live inventory from warehouse"}</span></div><div className="product-grid">{list.map((fruit) => <Product key={fruit.FruitID} fruit={fruit} user={user} quantityInCart={getCartQuantity(fruit.FruitID)} onUpdateQuantity={onUpdateQuantity} />)}</div>{!loading && list.length === 0 && <div className="no-results">No matching fresh lots today.</div>}</section>
   </main>;
 }
 
@@ -258,6 +314,117 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
   const [retailerBusy, setRetailerBusy] = useState(false);
   const [resetData, setResetData] = useState({ targetMobileNumber: "", newPassword: "", adminPassword: "" });
   const [resetBusy, setResetBusy] = useState(false);
+
+  // Advertisement Rich Push Notification state
+  const [adForm, setAdForm] = useState({
+    title: "🥭 Fresh Mangoes Arrived",
+    message: "Alphonso Mango ₹180/kg. Order before stock runs out.",
+    imageUrl: mangoImg,
+    actionText: "Order Now",
+    recipientRole: "All"
+  });
+  const [adBusy, setAdBusy] = useState(false);
+  const [schedulerStatus, setSchedulerStatus] = useState(null);
+
+  const fetchSchedulerStatus = async () => {
+    try {
+      const data = await request("/notifications/scheduler-status");
+      setSchedulerStatus(data);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchSchedulerStatus();
+  }, []);
+
+  const triggerAutoTest = async (slot) => {
+    try {
+      await request("/notifications/trigger-auto-test", {
+        method: "POST",
+        body: JSON.stringify({ timeSlot: slot })
+      });
+      notice(`Test auto push broadcast sent for ${slot.toUpperCase()} slot!`);
+      fetchSchedulerStatus();
+    } catch (err) {
+      notice(err.message, true);
+    }
+  };
+
+  const applyAdPreset = (preset) => {
+    switch (preset) {
+      case "mango":
+        setAdForm({
+          title: "🥭 Fresh Mangoes Arrived",
+          message: "Alphonso Mango ₹180/kg. Order before stock runs out.",
+          imageUrl: mangoImg,
+          actionText: "Order Now",
+          recipientRole: "All"
+        });
+        break;
+      case "morning":
+        setAdForm({
+          title: "🌅 Good Morning Fresh Stock",
+          message: "Good Morning! Fresh fruits have arrived today. Apples, Bananas, Mangoes at wholesale prices.",
+          imageUrl: appleImg,
+          actionText: "Shop Now",
+          recipientRole: "All"
+        });
+        break;
+      case "night":
+        setAdForm({
+          title: "🌙 Good Night Stock Update",
+          message: "Thank you for choosing us today. Tomorrow's fresh stock will be available from 5:00 AM.",
+          imageUrl: melonImg,
+          actionText: "View Products",
+          recipientRole: "All"
+        });
+        break;
+      case "accepted":
+        setAdForm({
+          title: "🚚 Order Accepted & Dispatched",
+          message: "Your wholesale crate order has been processed and accepted by warehouse.",
+          imageUrl: bananaImg,
+          actionText: "Track Order",
+          recipientRole: "All"
+        });
+        break;
+      default:
+        break;
+    }
+    notice(`Applied push preset: ${preset}`);
+  };
+
+  const handleAdPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1 * 1024 * 1024) {
+      notice("Notification graphic size exceeds 1MB! Select a smaller photo.", true);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAdForm((prev) => ({ ...prev, imageUrl: reader.result }));
+      notice("Custom notification graphic attached!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const sendRichPushAdvertisement = async (e) => {
+    e.preventDefault();
+    setAdBusy(true);
+    try {
+      await request("/notifications/broadcast", {
+        method: "POST",
+        body: JSON.stringify(adForm)
+      });
+      notice("Rich Push Advertisement broadcast live to all mobile devices & web browsers!");
+    } catch (error) {
+      notice(error.message || "Failed to send broadcast push notification", true);
+    } finally {
+      setAdBusy(false);
+    }
+  };
 
   // Drag and drop & touch state for reordering fruits
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -607,6 +774,118 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
     </div>
 
     <div className="manage-grid" style={{ marginTop: "24px" }}>
+      <section className="panel ad-push-section">
+        <PanelTitle
+          title="📢 Broadcast Rich Push Advertisement (Mobile & Web)"
+          sub="Send instant big-picture notification banners with action buttons directly to retailer mobile devices"
+        />
+
+        {/* Automated 24-Hour Push Scheduler Info */}
+        <div style={{ background: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.25)", borderRadius: "10px", padding: "12px 14px", margin: "14px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", color: "#0d9488", fontSize: "13px" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }}></span>
+              Automated 24-Hour Push Scheduler Status: ACTIVE
+            </div>
+            <div style={{ fontSize: "12px", color: "#476053", fontWeight: "500" }}>
+              {schedulerStatus?.isManualPriorityActive 
+                ? "⚡ Manual Push Priority Active (Manual override for 2 hours)" 
+                : "🤖 Auto Push Schedule (6-10 AM Hourly Morning, 12-4 PM Afternoon Deals, 8-10 PM Good Night)"}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#476053" }}>⚡ Test Automated Push Slots:</span>
+            <button type="button" onClick={() => triggerAutoTest("morning")} style={{ background: "#fef3c7", border: "1px solid #f59e0b", color: "#92400e", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
+              🌅 Morning Test (6–10 AM)
+            </button>
+            <button type="button" onClick={() => triggerAutoTest("afternoon")} style={{ background: "#e0f2fe", border: "1px solid #0284c7", color: "#075985", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
+              ☀️ Afternoon Test (12–4 PM)
+            </button>
+            <button type="button" onClick={() => triggerAutoTest("night")} style={{ background: "#f3e8ff", border: "1px solid #9333ea", color: "#6b21a8", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
+              🌙 Night Test (8–10 PM)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ fontSize: "12px", fontWeight: "700", color: "#476053", marginTop: "12px" }}>
+          ⚡ Quick Manual Advertisement Presets:
+        </div>
+        <div className="ad-preset-chips">
+          <button type="button" className="ad-preset-chip" onClick={() => applyAdPreset("mango")}>
+            🥭 Fresh Mango Offer
+          </button>
+          <button type="button" className="ad-preset-chip" onClick={() => applyAdPreset("morning")}>
+            🌅 Good Morning
+          </button>
+          <button type="button" className="ad-preset-chip" onClick={() => applyAdPreset("night")}>
+            🌙 Good Night
+          </button>
+          <button type="button" className="ad-preset-chip" onClick={() => applyAdPreset("accepted")}>
+            🚚 Order Status Update
+          </button>
+        </div>
+
+        <form className="fruit-form" onSubmit={sendRichPushAdvertisement}>
+          <label>Notification Title
+            <input required value={adForm.title} onChange={(e) => setAdForm({ ...adForm, title: e.target.value })} placeholder="e.g. 🥭 Fresh Mangoes Arrived" />
+          </label>
+
+          <label>Description / Message
+            <input required value={adForm.message} onChange={(e) => setAdForm({ ...adForm, message: e.target.value })} placeholder="e.g. Alphonso Mango ₹180/kg. Order before stock runs out." />
+          </label>
+
+          <label>Rich Graphic Banner Photo (~0.5 MB Max 1MB)
+            <small style={{ display: "block", color: "#476053", fontSize: "11px", margin: "2px 0 4px", fontWeight: "normal" }}>
+              🖼️ Upload HD Notification Banner Image for Mobile Lock Screen & Browsers
+            </small>
+            <input type="file" accept="image/*" onChange={handleAdPhotoChange} style={{ padding: "8px" }} />
+          </label>
+
+          <label>Action Button Text
+            <input required value={adForm.actionText} onChange={(e) => setAdForm({ ...adForm, actionText: e.target.value })} placeholder="e.g. Order Now / View Products / Track Order" />
+          </label>
+
+          {/* Live Mobile Push Preview Box */}
+          <div className="ad-preview-container">
+            <div className="ad-preview-title">
+              📱 Live Mobile Push Notification Preview
+            </div>
+            <div className="mobile-push-card" style={{ maxWidth: "380px", margin: "auto" }}>
+              <div className="mobile-push-header">
+                <div className="mobile-push-brand">
+                  <span className="mobile-push-brand-icon">F</span>
+                  FruitLane Wholesale
+                </div>
+                <span className="mobile-push-time">Just now</span>
+              </div>
+              {adForm.imageUrl && (
+                <img src={adForm.imageUrl} alt="Push banner preview" className="mobile-push-banner" />
+              )}
+              <div className="mobile-push-body">
+                <h4 className="mobile-push-title">{adForm.title || "Notification Title"}</h4>
+                <p className="mobile-push-msg">{adForm.message || "Notification description message"}</p>
+              </div>
+              <div className="mobile-push-actions">
+                <button type="button" className="mobile-push-btn-primary" style={{ cursor: "default" }}>
+                  <ShoppingCart size={14} /> {adForm.actionText || "Order Now"}
+                </button>
+                <button type="button" className="mobile-push-btn-secondary" style={{ cursor: "default" }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions" style={{ marginTop: "18px" }}>
+            <button disabled={adBusy} className="primary" style={{ padding: "12px 20px", fontSize: "14px" }}>
+              Broadcast Push Advertisement <Megaphone size={16} />
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div className="manage-grid" style={{ marginTop: "24px" }}>
       <section className="panel retailer-registration"><PanelTitle title="Register a retailer" sub="Creates a new account" /><form className="fruit-form retailer-form" onSubmit={registerRetailer}><label>Mobile number<input required pattern="[0-9]{10}" maxLength="10" value={retailer.mobileNumber} onChange={(event) => setRetailer({ ...retailer, mobileNumber: event.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" /></label><label>Retailer name<input required value={retailer.retailerName} onChange={(event) => setRetailer({ ...retailer, retailerName: event.target.value })} placeholder="Owner name" /></label><label>Shop name<input required value={retailer.shopName} onChange={(event) => setRetailer({ ...retailer, shopName: event.target.value })} placeholder="Shop name" /></label><label>Address<input required value={retailer.address} onChange={(event) => setRetailer({ ...retailer, address: event.target.value })} placeholder="Business address" /></label><label>Password<input required type="password" value={retailer.password} onChange={(event) => setRetailer({ ...retailer, password: event.target.value })} placeholder="Initial Password" /></label><div className="form-actions"><button disabled={retailerBusy} className="primary">Register retailer <Users size={16} /></button></div></form></section>
       
       <section className="panel retailer-registration"><PanelTitle title="Reset Retailer Password" sub="Assign a new password to a retailer" /><form className="fruit-form retailer-form" onSubmit={resetUserPassword}><label>Retailer Mobile Number<input required pattern="[0-9]{10}" maxLength="10" value={resetData.targetMobileNumber} onChange={(event) => setResetData({ ...resetData, targetMobileNumber: event.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" /></label><label>New Password<input required type="password" value={resetData.newPassword} onChange={(event) => setResetData({ ...resetData, newPassword: event.target.value })} placeholder="New Password" /></label><label>Confirm Admin Password<input required type="password" value={resetData.adminPassword} onChange={(event) => setResetData({ ...resetData, adminPassword: event.target.value })} placeholder="Your Admin Password" /></label><div className="form-actions"><button disabled={resetBusy} className="primary">Reset Password</button></div></form></section>
@@ -614,8 +893,99 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
   </main>;
 }
 
-function Metric({ icon, label, value, note }) { return <article className="metric"><span>{icon}</span><p>{label}</p><h2>{value}</h2><small>{note}</small></article>; }
+function Metric({ icon, label, value, note, onClick, active }) { 
+  return (
+    <article
+      className={`metric ${onClick ? "clickable" : ""} ${active ? "active" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
+      <span>{icon}</span>
+      <p>{label}</p>
+      <h2>{value}</h2>
+      <small>{note}</small>
+    </article>
+  );
+}
+
 function PanelTitle({ title, sub }) { return <div className="panel-title"><div><h2>{title}</h2><p>{sub}</p></div></div>; }
+
+function Pagination({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }) {
+  if (totalItems === 0 || totalPages <= 1) return null;
+
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  const pages = [];
+  const maxButtons = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+  let endPage = startPage + maxButtons - 1;
+
+  if (endPage > totalPages) {
+    endPage = totalPages;
+    startPage = Math.max(1, endPage - maxButtons + 1);
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+
+  return (
+    <div className="pagination-wrapper">
+      <div className="pagination-info">
+        Showing <strong>{startItem}–{endItem}</strong> of <strong>{totalItems}</strong> orders
+      </div>
+      <div className="pagination-controls">
+        <button
+          className="pagination-btn nav-btn"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          title="Previous Page"
+        >
+          <ChevronLeft size={16} /> Prev
+        </button>
+
+        {startPage > 1 && (
+          <>
+            <button className="pagination-btn num-btn" onClick={() => onPageChange(1)}>
+              1
+            </button>
+            {startPage > 2 && <span className="pagination-ellipsis">...</span>}
+          </>
+        )}
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            className={`pagination-btn num-btn ${currentPage === p ? "active" : ""}`}
+            onClick={() => onPageChange(p)}
+          >
+            {p}
+          </button>
+        ))}
+
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="pagination-ellipsis">...</span>}
+            <button className="pagination-btn num-btn" onClick={() => onPageChange(totalPages)}>
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        <button
+          className="pagination-btn nav-btn"
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          title="Next Page"
+        >
+          Next <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const formatOrderDateTime = (dateStr) => {
   if (!dateStr) return { date: "", time: "" };
@@ -627,9 +997,18 @@ const formatOrderDateTime = (dateStr) => {
 };
 
 function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, onUpdateStatus }) {
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   useEffect(() => {
     loadOrders();
   }, []);
+
+  const pendingCount = useMemo(() => orders.filter(o => o.Status === "Pending").length, [orders]);
+  const acceptedCount = useMemo(() => orders.filter(o => o.Status === "Accepted").length, [orders]);
+  const deliveredCount = useMemo(() => orders.filter(o => o.Status === "Delivered").length, [orders]);
+  const rejectedCount = useMemo(() => orders.filter(o => o.Status === "Rejected").length, [orders]);
 
   const sortedOrders = useMemo(() => {
     return [...orders].sort((a, b) => {
@@ -638,6 +1017,32 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
       return timeB - timeA;
     });
   }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === "All") return sortedOrders;
+    return sortedOrders.filter(o => o.Status === statusFilter);
+  }, [sortedOrders, statusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  const handleFilterChange = (status) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const toggleMetricFilter = (status) => {
+    if (statusFilter === status) {
+      setStatusFilter("All");
+    } else {
+      setStatusFilter(status);
+    }
+    setCurrentPage(1);
+  };
 
   return <main className="page">
     <div className="page-head">
@@ -649,15 +1054,80 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
     </div>
     
     <div className="metrics" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-      <Metric icon={<Clock3 />} label="Pending" value={orders.filter(o => o.Status === "Pending").length} note="Requires review" />
-      <Metric icon={<Check />} label="Accepted" value={orders.filter(o => o.Status === "Accepted").length} note="In delivery pipeline" />
-      <Metric icon={<Truck />} label="Delivered" value={orders.filter(o => o.Status === "Delivered").length} note="Order completed" />
-      <Metric icon={<XCircle />} label="Rejected" value={orders.filter(o => o.Status === "Rejected").length} note="Cancelled/Declined" />
+      <Metric
+        icon={<Clock3 />}
+        label="Pending"
+        value={pendingCount}
+        note="Requires review"
+        onClick={() => toggleMetricFilter("Pending")}
+        active={statusFilter === "Pending"}
+      />
+      <Metric
+        icon={<Check />}
+        label="Accepted"
+        value={acceptedCount}
+        note="In delivery pipeline"
+        onClick={() => toggleMetricFilter("Accepted")}
+        active={statusFilter === "Accepted"}
+      />
+      <Metric
+        icon={<Truck />}
+        label="Delivered"
+        value={deliveredCount}
+        note="Order completed"
+        onClick={() => toggleMetricFilter("Delivered")}
+        active={statusFilter === "Delivered"}
+      />
+      <Metric
+        icon={<XCircle />}
+        label="Rejected"
+        value={rejectedCount}
+        note="Cancelled/Declined"
+        onClick={() => toggleMetricFilter("Rejected")}
+        active={statusFilter === "Rejected"}
+      />
     </div>
 
     <section className="panel">
-      <PanelTitle title="All Orders" sub={loading ? "Loading orders..." : `${orders.length} orders total (Sorted by Date & Time)`} />
-      {sortedOrders.map((order) => {
+      <PanelTitle
+        title={statusFilter === "All" ? "All Orders" : `${statusFilter} Orders`}
+        sub={loading ? "Loading orders..." : `${filteredOrders.length} orders found ${statusFilter !== "All" ? `(Filtered by ${statusFilter})` : "(Sorted by Date & Time)"}`}
+      />
+
+      <div className="order-status-tabs">
+        <button
+          className={`status-tab-btn ${statusFilter === "All" ? "active" : ""}`}
+          onClick={() => handleFilterChange("All")}
+        >
+          All Orders <span className="status-tab-count">{orders.length}</span>
+        </button>
+        <button
+          className={`status-tab-btn ${statusFilter === "Pending" ? "active" : ""}`}
+          onClick={() => handleFilterChange("Pending")}
+        >
+          Pending <span className="status-tab-count">{pendingCount}</span>
+        </button>
+        <button
+          className={`status-tab-btn ${statusFilter === "Accepted" ? "active" : ""}`}
+          onClick={() => handleFilterChange("Accepted")}
+        >
+          Accepted <span className="status-tab-count">{acceptedCount}</span>
+        </button>
+        <button
+          className={`status-tab-btn ${statusFilter === "Delivered" ? "active" : ""}`}
+          onClick={() => handleFilterChange("Delivered")}
+        >
+          Delivered <span className="status-tab-count">{deliveredCount}</span>
+        </button>
+        <button
+          className={`status-tab-btn ${statusFilter === "Rejected" ? "active" : ""}`}
+          onClick={() => handleFilterChange("Rejected")}
+        >
+          Rejected <span className="status-tab-count">{rejectedCount}</span>
+        </button>
+      </div>
+
+      {paginatedOrders.map((order) => {
         const { date, time } = formatOrderDateTime(order.OrderDate);
         return (
           <div className="order-row order-live" key={order.OrderID} style={{ gridTemplateColumns: "auto 1.4fr 1.25fr auto auto" }}>
@@ -706,12 +1176,28 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
           </div>
         );
       })}
-      {!loading && !orders.length && <div className="no-results">No orders have been placed yet.</div>}
+      {!loading && !filteredOrders.length && (
+        <div className="no-results" style={{ padding: "40px 0" }}>
+          {statusFilter === "All" ? "No orders have been placed yet." : `No ${statusFilter.toLowerCase()} orders found.`}
+        </div>
+      )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredOrders.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
     </section>
   </main>;
 }
 
 function RetailerOrders({ user, request, notice, orders, loadOrders, loading, onSelectOrder }) {
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   useEffect(() => {
     loadOrders();
   }, [user?.mobileNumber]);
@@ -722,6 +1208,45 @@ function RetailerOrders({ user, request, notice, orders, loadOrders, loading, on
   const totalOrderedValue = orders.reduce((sum, o) => sum + (Number(o.Total) || 0), 0);
   const totalDeliveredValue = orders.filter(o => o.Status === "Delivered").reduce((sum, o) => sum + (Number(o.Total) || 0), 0);
   const pendingValue = orders.filter(o => o.Status === "Pending" || o.Status === "Accepted").reduce((sum, o) => sum + (Number(o.Total) || 0), 0);
+
+  const pendingCount = useMemo(() => orders.filter(o => o.Status === "Pending").length, [orders]);
+  const acceptedCount = useMemo(() => orders.filter(o => o.Status === "Accepted").length, [orders]);
+  const deliveredCount = useMemo(() => orders.filter(o => o.Status === "Delivered").length, [orders]);
+  const rejectedCount = useMemo(() => orders.filter(o => o.Status === "Rejected").length, [orders]);
+
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const timeA = a.OrderDate ? new Date(a.OrderDate).getTime() : 0;
+      const timeB = b.OrderDate ? new Date(b.OrderDate).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === "All") return sortedOrders;
+    return sortedOrders.filter(o => o.Status === statusFilter);
+  }, [sortedOrders, statusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  const handleFilterChange = (status) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const toggleMetricFilter = (status) => {
+    if (statusFilter === status) {
+      setStatusFilter("All");
+    } else {
+      setStatusFilter(status);
+    }
+    setCurrentPage(1);
+  };
 
   return (
     <main className="page">
@@ -745,20 +1270,60 @@ function RetailerOrders({ user, request, notice, orders, loadOrders, loading, on
           label="Delivered" 
           value={`${totalDeliveredBoxes} Box${totalDeliveredBoxes !== 1 ? "es" : ""}`} 
           note={`Value: ${money.format(totalDeliveredValue)}`} 
+          onClick={() => toggleMetricFilter("Delivered")}
+          active={statusFilter === "Delivered"}
         />
         <Metric 
           icon={<Clock3 />} 
           label="Pending Delivery" 
-          value={`${totalOrderedBoxes - totalDeliveredBoxes} Box${(totalOrderedBoxes - totalDeliveredBoxes) !== 1 ? "es" : ""}`} 
+          value={`${orders.filter(o => o.Status === "Pending" || o.Status === "Accepted").length} Box(es)`} 
           note={`Pending Value: ${money.format(pendingValue)}`} 
+          onClick={() => toggleMetricFilter("Pending")}
+          active={statusFilter === "Pending"}
         />
       </div>
 
       <section className="panel">
-        <PanelTitle title="Your Order History" sub={loading ? "Refreshing..." : `${orders.length} orders total`} />
+        <PanelTitle
+          title={statusFilter === "All" ? "Your Order History" : `${statusFilter} Orders`}
+          sub={loading ? "Refreshing..." : `${filteredOrders.length} orders total ${statusFilter !== "All" ? `(Filtered by ${statusFilter})` : ""}`}
+        />
         
+        <div className="order-status-tabs">
+          <button
+            className={`status-tab-btn ${statusFilter === "All" ? "active" : ""}`}
+            onClick={() => handleFilterChange("All")}
+          >
+            All Orders <span className="status-tab-count">{orders.length}</span>
+          </button>
+          <button
+            className={`status-tab-btn ${statusFilter === "Pending" ? "active" : ""}`}
+            onClick={() => handleFilterChange("Pending")}
+          >
+            Pending <span className="status-tab-count">{pendingCount}</span>
+          </button>
+          <button
+            className={`status-tab-btn ${statusFilter === "Accepted" ? "active" : ""}`}
+            onClick={() => handleFilterChange("Accepted")}
+          >
+            Accepted <span className="status-tab-count">{acceptedCount}</span>
+          </button>
+          <button
+            className={`status-tab-btn ${statusFilter === "Delivered" ? "active" : ""}`}
+            onClick={() => handleFilterChange("Delivered")}
+          >
+            Delivered <span className="status-tab-count">{deliveredCount}</span>
+          </button>
+          <button
+            className={`status-tab-btn ${statusFilter === "Rejected" ? "active" : ""}`}
+            onClick={() => handleFilterChange("Rejected")}
+          >
+            Rejected <span className="status-tab-count">{rejectedCount}</span>
+          </button>
+        </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "15px" }}>
-          {orders.map((order) => (
+          {paginatedOrders.map((order) => (
             <div 
               key={order.OrderID} 
               className="order-row" 
@@ -793,12 +1358,22 @@ function RetailerOrders({ user, request, notice, orders, loadOrders, loading, on
               </button>
             </div>
           ))}
-          {!loading && !orders.length && (
+          {!loading && !filteredOrders.length && (
             <div className="no-results" style={{ padding: "40px 0" }}>
-              You haven't placed any orders yet. Visit "Buy fruits" to place your first order!
+              {statusFilter === "All"
+                ? "You haven't placed any orders yet. Visit \"Buy fruits\" to place your first order!"
+                : `No ${statusFilter.toLowerCase()} orders found.`}
             </div>
           )}
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredOrders.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </section>
     </main>
   );
@@ -1065,6 +1640,7 @@ function App() {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [mobilePushNotif, setMobilePushNotif] = useState(null);
 
   // Cart state stored as array of items: [{ fruit, quantity }]
   const [cart, setCart] = useState(() => {
@@ -1215,6 +1791,23 @@ function App() {
       setToastEvents((prev) => [...prev, notif]);
       setNotifications((prev) => [notif, ...prev]);
       setUnreadCount((count) => count + 1);
+    });
+
+    socket.on("rich_push_advertisement", (adNotif) => {
+      console.log("Real-time rich push advertisement received:", adNotif);
+      setMobilePushNotif(adNotif);
+      setNotifications((prev) => [adNotif, ...prev]);
+      setUnreadCount((count) => count + 1);
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification(adNotif.title, {
+            body: adNotif.message,
+            icon: "/assets/logo.png",
+            image: adNotif.imageUrl || undefined
+          });
+        } catch {}
+      }
     });
 
     socket.on("order_updated", (updatedOrder) => {
@@ -1409,6 +2002,7 @@ function App() {
           banners={banners}
           getCartQuantity={getCartQuantity}
           onUpdateQuantity={updateCartQuantity} 
+          user={user}
         />
       )}
       {page === "admin" && user?.role === "Admin" && (
@@ -1471,6 +2065,18 @@ function App() {
           user={user} 
           onClose={() => setSelectedOrder(null)} 
           onUpdateStatus={handleUpdateOrderStatus} 
+        />
+      )}
+      {mobilePushNotif && (
+        <MobilePushNotificationBanner
+          notification={mobilePushNotif}
+          onClose={() => setMobilePushNotif(null)}
+          onAction={() => {
+            setPage("market");
+            window.setTimeout(() => {
+              document.querySelector("#catalog")?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+          }}
         />
       )}
       {noticeState && <div className={`toast ${noticeState.error ? "error" : ""}`}>{noticeState.message}</div>}
