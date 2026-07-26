@@ -617,10 +617,27 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
 function Metric({ icon, label, value, note }) { return <article className="metric"><span>{icon}</span><p>{label}</p><h2>{value}</h2><small>{note}</small></article>; }
 function PanelTitle({ title, sub }) { return <div className="panel-title"><div><h2>{title}</h2><p>{sub}</p></div></div>; }
 
+const formatOrderDateTime = (dateStr) => {
+  if (!dateStr) return { date: "", time: "" };
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { date: "", time: "" };
+  const date = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return { date, time };
+};
+
 function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, onUpdateStatus }) {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const timeA = a.OrderDate ? new Date(a.OrderDate).getTime() : 0;
+      const timeB = b.OrderDate ? new Date(b.OrderDate).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [orders]);
 
   return <main className="page">
     <div className="page-head">
@@ -639,42 +656,56 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
     </div>
 
     <section className="panel">
-      <PanelTitle title="All Orders" sub={loading ? "Loading orders..." : `${orders.length} orders total`} />
-      {orders.map((order) => (
-        <div className="order-row order-live" key={order.OrderID} style={{ gridTemplateColumns: "auto 1.5fr 1fr auto auto" }}>
-          <span className="avatar">{order.RetailerName?.[0] || "R"}</span>
-          <div>
-            <b style={{ fontSize: "14px" }}>{order.RetailerName}</b>
-            <small style={{ display: "block", color: "var(--muted)", fontSize: "11px" }}>
-              #{order.OrderID} • {order.FruitName} x {order.Quantity} box(es)
-            </small>
-          </div>
-          <strong>{money.format(Number(order.Total))}</strong>
-          <Pill tone={order.Status === "Delivered" ? "lime" : order.Status === "Rejected" ? "danger" : order.Status === "Accepted" ? "lime" : "soft"}>
-            {order.Status}
-          </Pill>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button className="text" onClick={() => onSelectOrder(order.OrderID)} title="View timeline & details">
-              <Eye size={15} /> Details
-            </button>
-            {order.Status === "Pending" && (
-              <>
-                <button className="text" style={{ color: "#287d4a" }} onClick={() => onUpdateStatus(order, "Accepted")}>
-                  Accept
-                </button>
-                <button className="text" style={{ color: "#b24a32" }} onClick={() => onUpdateStatus(order, "Rejected")}>
-                  Reject
-                </button>
-              </>
-            )}
-            {order.Status === "Accepted" && (
-              <button className="text" style={{ color: "#0284c7" }} onClick={() => onUpdateStatus(order, "Delivered")}>
-                Deliver
+      <PanelTitle title="All Orders" sub={loading ? "Loading orders..." : `${orders.length} orders total (Sorted by Date & Time)`} />
+      {sortedOrders.map((order) => {
+        const { date, time } = formatOrderDateTime(order.OrderDate);
+        return (
+          <div className="order-row order-live" key={order.OrderID} style={{ gridTemplateColumns: "auto 1.4fr 1.25fr auto auto" }}>
+            <span className="avatar">{order.RetailerName?.[0] || "R"}</span>
+            <div>
+              <b style={{ fontSize: "14px" }}>{order.RetailerName}</b>
+              <small style={{ display: "block", color: "var(--muted)", fontSize: "11px" }}>
+                #{order.OrderID} • {order.FruitName} x {order.Quantity} box(es)
+              </small>
+            </div>
+            
+            {/* Middle Column: Amount + Date & Time */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <strong style={{ fontSize: "14px", color: "var(--green)" }}>{money.format(Number(order.Total))}</strong>
+              {date ? (
+                <small style={{ fontSize: "11px", color: "#4f6055", display: "inline-flex", alignItems: "center", gap: "3px", flexWrap: "nowrap" }}>
+                  <CalendarDays size={12} color="var(--green)" /> {date}
+                  <Clock3 size={12} color="var(--green)" style={{ marginLeft: "4px" }} /> {time}
+                </small>
+              ) : null}
+            </div>
+
+            <Pill tone={order.Status === "Delivered" ? "lime" : order.Status === "Rejected" ? "danger" : order.Status === "Accepted" ? "lime" : "soft"}>
+              {order.Status}
+            </Pill>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button className="text" onClick={() => onSelectOrder(order.OrderID)} title="View timeline & details">
+                <Eye size={15} /> Details
               </button>
-            )}
+              {order.Status === "Pending" && (
+                <>
+                  <button className="text" style={{ color: "#287d4a" }} onClick={() => onUpdateStatus(order, "Accepted")}>
+                    Accept
+                  </button>
+                  <button className="text" style={{ color: "#b24a32" }} onClick={() => onUpdateStatus(order, "Rejected")}>
+                    Reject
+                  </button>
+                </>
+              )}
+              {order.Status === "Accepted" && (
+                <button className="text" style={{ color: "#0284c7" }} onClick={() => onUpdateStatus(order, "Delivered")}>
+                  Deliver
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {!loading && !orders.length && <div className="no-results">No orders have been placed yet.</div>}
     </section>
   </main>;

@@ -91,8 +91,7 @@ async function ensureSeedData() {
     }
 
     const bannerCount = await Banner.countDocuments();
-    if (bannerCount < 6) {
-      await Banner.deleteMany({});
+    if (bannerCount === 0) {
       await Banner.insertMany([
         {
           title: "Holi Wholesale Mahotsav 🎨",

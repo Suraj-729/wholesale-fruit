@@ -26,7 +26,7 @@ export async function listOrders(req, res) {
   let query = {};
   if (status) query.Status = status;
   if (retailerMobile) query.RetailerMobile = retailerMobile;
-  const orders = await Order.find(query).sort({ OrderDate: -1 });
+  const orders = await Order.find(query).sort({ OrderDate: -1, _id: -1 });
   res.json(orders);
 }
 
