@@ -1799,11 +1799,39 @@ function App() {
       setNotifications((prev) => [adNotif, ...prev]);
       setUnreadCount((count) => count + 1);
 
-      if ("Notification" in window && Notification.permission === "granted") {
+      // Trigger System-Level Native Push Notification via Service Worker (Works on Mobile Lock Screen)
+      if ("serviceWorker" in navigator && Notification.permission === "granted") {
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.showNotification(adNotif.title, {
+            body: adNotif.message,
+            icon: "/fruitlane-icon.svg",
+            badge: "/fruitlane-icon.svg",
+            image: adNotif.imageUrl || undefined,
+            vibrate: [200, 100, 200],
+            tag: adNotif._id || "ad-push",
+            renotify: true,
+            data: { url: "/" },
+            actions: [
+              { action: "open", title: `🛒 ${adNotif.actionText || "Order Now"}` },
+              { action: "close", title: "Dismiss" }
+            ]
+          });
+        }).catch(() => {
+          if ("Notification" in window && Notification.permission === "granted") {
+            try {
+              new Notification(adNotif.title, {
+                body: adNotif.message,
+                icon: "/fruitlane-icon.svg",
+                image: adNotif.imageUrl || undefined
+              });
+            } catch {}
+          }
+        });
+      } else if ("Notification" in window && Notification.permission === "granted") {
         try {
           new Notification(adNotif.title, {
             body: adNotif.message,
-            icon: "/assets/logo.png",
+            icon: "/fruitlane-icon.svg",
             image: adNotif.imageUrl || undefined
           });
         } catch {}
@@ -1853,6 +1881,24 @@ function App() {
   useEffect(() => {
     loadFruits();
     loadBanners();
+
+    // Register Service Worker for Mobile Lock Screen & System Push Notifications
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          console.log("[Service Worker] Registered with scope:", reg.scope);
+        })
+        .catch((err) => {
+          console.warn("[Service Worker] Registration failed:", err);
+        });
+    }
+
+    if ("Notification" in window && Notification.permission === "default") {
+      try {
+        Notification.requestPermission();
+      } catch {}
+    }
   }, []);
 
   // Cart Helper functions
