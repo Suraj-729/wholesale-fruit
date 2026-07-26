@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { io } from "socket.io-client";
-import { ArrowRight, Bell, Box, CalendarDays, Check, ChevronDown, CircleCheck, Clock3, Eye, Image, LayoutDashboard, MapPin, Menu, Minus, Package, PackageCheck, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, Truck, Upload, Users, X, XCircle } from "lucide-react";
+import { ArrowRight, ArrowUp, Bell, Box, CalendarDays, Check, ChevronDown, CircleCheck, Clock3, Eye, GripVertical, Image, LayoutDashboard, MapPin, Menu, Minus, Package, PackageCheck, Plus, Search, ShoppingCart, Sparkles, Store, Trash2, Truck, Upload, Users, X, XCircle, Zap } from "lucide-react";
 import "./styles.css";
 import "./connected.css";
 
@@ -250,7 +250,7 @@ function FruitForm({ form, setForm, onSubmit, editing, onCancel, busy, notice })
   );
 }
 
-function Admin({ user, fruits, loading, banners, refreshBanners, request, refresh, notice }) {
+function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, request, refresh, notice }) {
   const [form, setForm] = useState(blankFruit);
   const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -258,6 +258,102 @@ function Admin({ user, fruits, loading, banners, refreshBanners, request, refres
   const [retailerBusy, setRetailerBusy] = useState(false);
   const [resetData, setResetData] = useState({ targetMobileNumber: "", newPassword: "", adminPassword: "" });
   const [resetBusy, setResetBusy] = useState(false);
+
+  // Drag and drop & touch state for reordering fruits
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const touchStartIdxRef = useRef(null);
+
+  const saveFruitOrder = async (newOrderedFruits) => {
+    if (setFruits) setFruits(newOrderedFruits);
+    try {
+      const fruitIds = newOrderedFruits.map((f) => f.FruitID);
+      await request("/fruits/reorder", {
+        method: "PUT",
+        body: JSON.stringify({ fruitIds })
+      });
+      notice("Inventory order updated! Position #1 fruit is now shown first to retailers.");
+    } catch (error) {
+      notice(error.message || "Failed to save fruit order", true);
+      refresh();
+    }
+  };
+
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData("text/plain", String(index));
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedIdx(index);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIdx !== index) {
+      setDragOverIdx(index);
+    }
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    const sourceIdxStr = e.dataTransfer.getData("text/plain");
+    const sourceIdx = draggedIdx !== null ? draggedIdx : parseInt(sourceIdxStr, 10);
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+
+    if (isNaN(sourceIdx) || sourceIdx === targetIdx || sourceIdx < 0 || sourceIdx >= fruits.length) return;
+
+    const updated = [...fruits];
+    const [draggedItem] = updated.splice(sourceIdx, 1);
+    updated.splice(targetIdx, 0, draggedItem);
+    saveFruitOrder(updated);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  // Touch drag support for mobile finger slide
+  const handleTouchStart = (e, index) => {
+    touchStartIdxRef.current = index;
+    setDraggedIdx(index);
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartIdxRef.current === null) return;
+    const touch = e.touches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!targetEl) return;
+    const rowEl = targetEl.closest(".manage-row[data-index]");
+    if (rowEl) {
+      const overIndex = parseInt(rowEl.getAttribute("data-index"), 10);
+      if (!isNaN(overIndex) && overIndex !== dragOverIdx) {
+        setDragOverIdx(overIndex);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartIdxRef.current !== null && dragOverIdx !== null && touchStartIdxRef.current !== dragOverIdx) {
+      const sourceIdx = touchStartIdxRef.current;
+      const targetIdx = dragOverIdx;
+      const updated = [...fruits];
+      const [draggedItem] = updated.splice(sourceIdx, 1);
+      updated.splice(targetIdx, 0, draggedItem);
+      saveFruitOrder(updated);
+    }
+    touchStartIdxRef.current = null;
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const moveToTop = (index) => {
+    if (index === 0) return;
+    const updated = [...fruits];
+    const [item] = updated.splice(index, 1);
+    updated.unshift(item);
+    saveFruitOrder(updated);
+  };
 
   // Banner form state
   const [bannerForm, setBannerForm] = useState({
@@ -355,7 +451,87 @@ function Admin({ user, fruits, loading, banners, refreshBanners, request, refres
   return <main className="page"><div className="page-head"><div><Pill>Admin workspace</Pill><h1>Manage the <em>live fruit catalog.</em></h1><p>Every change is saved in the database and appears to retailers instantly.</p></div></div>
     <div className="metrics"><Metric icon={<Package />} label="Fruit lots" value={fruits.length} note="Active in catalog" /><Metric icon={<Box />} label="Available boxes" value={boxCount} note="Across all fruits" /><Metric icon={<Sparkles />} label="Offer Banners" value={banners.length} note="Live on homepage" /><Metric icon={<PackageCheck />} label="Source" value="DB" note="Shared inventory" /></div>
     <div className="manage-grid"><section className="panel"><PanelTitle title={editing ? `Editing ${editing.FruitID}` : "Add a new fruit"} sub="Required fields become a new database record" /><FruitForm form={form} setForm={setForm} onSubmit={save} editing={editing} onCancel={reset} busy={busy} notice={notice} /></section>
-      <section className="panel"><PanelTitle title="Live inventory" sub={loading ? "Refreshing..." : `${fruits.length} items in DB`} /><div className="manage-table"><div className="manage-head"><span>Fruit</span><span>Package</span><span>Stock</span><span>Price</span><span>Actions</span></div>{fruits.map((fruit) => <div className="manage-row" key={fruit.FruitID}><b>{fruit.FruitName}<small>{fruit.FruitID}</small></b><span>{fruit.PackageType}</span><span>{fruit.AvailableQuantity}</span><span>{money.format(Number(fruit.Price))}</span><span><button className="text" onClick={() => edit(fruit)}>Edit</button><button className="danger" onClick={() => remove(fruit)}><Trash2 size={15} /></button></span></div>)}</div></section></div>
+      <section className="panel">
+        <PanelTitle title="Live inventory" sub={loading ? "Refreshing..." : `${fruits.length} items in DB`} />
+        
+        <div className="reorder-hint">
+          <GripVertical size={16} /> <span><strong>Slide / Drag to Reorder:</strong> Drag fruit rows up or down using cursor (desktop) or finger (mobile) to set #1 stock priority for retailers.</span>
+        </div>
+
+        <div className="manage-table">
+          <div className="manage-head">
+            <span></span>
+            <span>Pos</span>
+            <span>Fruit</span>
+            <span>Package</span>
+            <span>Stock</span>
+            <span>Price</span>
+            <span>Actions</span>
+          </div>
+          {fruits.map((fruit, index) => {
+            const isDragging = draggedIdx === index;
+            const isDragOver = dragOverIdx === index;
+            const isTop = index === 0;
+
+            return (
+              <div
+                className={`manage-row ${isDragging ? "dragging" : ""} ${isDragOver ? "drag-over" : ""}`}
+                key={fruit.FruitID}
+                data-index={index}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+              >
+                <div
+                  className="drag-handle"
+                  title="Touch or click & drag to slide up/down"
+                  onTouchStart={(e) => handleTouchStart(e, index)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <GripVertical size={18} />
+                </div>
+
+                <div>
+                  <span className={`pos-badge ${isTop ? "top-pos" : ""}`}>
+                    #{index + 1}
+                  </span>
+                </div>
+
+                <b>
+                  {fruit.FruitName}
+                  <small>{fruit.FruitID}</small>
+                </b>
+
+                <span>{fruit.PackageType}</span>
+
+                <span>{fruit.AvailableQuantity}</span>
+
+                <span>{money.format(Number(fruit.Price))}</span>
+
+                <span>
+                  {!isTop && (
+                    <button
+                      type="button"
+                      className="make-top-btn"
+                      title="Move item to #1 position instantly to clear stock fast"
+                      onClick={() => moveToTop(index)}
+                    >
+                      <Zap size={12} /> #1 Top
+                    </button>
+                  )}
+                  <button className="text" onClick={() => edit(fruit)}>Edit</button>
+                  <button className="danger" onClick={() => remove(fruit)}>
+                    <Trash2 size={15} />
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section></div>
     
     {/* Offer Banners Management Panel */}
     <div className="manage-grid" style={{ marginTop: "24px" }}>
@@ -1033,6 +1209,10 @@ function App() {
       loadFruits();
     });
 
+    socket.on("fruit_reordered", () => {
+      loadFruits();
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -1204,6 +1384,7 @@ function App() {
         <Admin 
           user={user} 
           fruits={fruits} 
+          setFruits={setFruits}
           loading={loading} 
           banners={banners}
           refreshBanners={loadBanners}

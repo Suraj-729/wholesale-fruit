@@ -7,6 +7,7 @@ const fruitSchema = new mongoose.Schema({
   AvailableQuantity: { type: Number, required: true },
   Price: { type: Number, required: true },
   imageUrl: { type: String, default: "" },
+  sortOrder: { type: Number, default: 0 },
   CreatedDate: { type: String, required: true },
 });
 
