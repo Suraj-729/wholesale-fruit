@@ -264,6 +264,181 @@ function Market({ fruits, loading, banners, getCartQuantity, onUpdateQuantity, u
   </main>;
 }
 
+function RegisteredRetailersModal({ retailers, onClose, onDeleteRetailer, loading }) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!searchTerm.trim()) return retailers;
+    const term = searchTerm.toLowerCase().trim();
+    return retailers.filter(
+      (r) =>
+        r.RetailerName?.toLowerCase().includes(term) ||
+        r.ShopName?.toLowerCase().includes(term) ||
+        r.MobileNumber?.includes(term) ||
+        r.Address?.toLowerCase().includes(term)
+    );
+  }, [retailers, searchTerm]);
+
+  const formatRegDetails = (isoDateStr) => {
+    if (!isoDateStr) return { dayDate: "N/A", time: "N/A", relative: "" };
+    try {
+      const d = new Date(isoDateStr);
+      if (isNaN(d.getTime())) return { dayDate: isoDateStr, time: "", relative: "" };
+
+      const dayDate = d.toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      });
+
+      const time = d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      });
+
+      const diffMs = Date.now() - d.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let relative = "";
+      if (diffMins < 1) relative = "Just now";
+      else if (diffMins < 60) relative = `${diffMins} mins ago`;
+      else if (diffHours < 24) relative = `${diffHours} ${diffHours === 1 ? "hr" : "hrs"} ago`;
+      else relative = `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+
+      return { dayDate, time, relative };
+    } catch {
+      return { dayDate: isoDateStr, time: "", relative: "" };
+    }
+  };
+
+  return (
+    <div className="retailers-modal-overlay">
+      <div className="retailers-modal-card">
+        <div className="retailers-modal-head">
+          <div>
+            <h3>
+              <Users size={22} /> Registered Retailers Log & Account Details
+            </h3>
+            <p>Complete directory of all registered fruit buyers, shop details & registration timestamps.</p>
+          </div>
+          <button className="retailers-modal-close" onClick={onClose} title="Close directory">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="retailers-modal-toolbar">
+          <div className="retailers-search-box">
+            <Search size={16} color="var(--muted)" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by retailer name, shop name, address or mobile number..."
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <span className="retailers-count-badge">
+            Showing {filtered.length} of {retailers.length} Registered Retailers
+          </span>
+        </div>
+
+        <div className="retailers-modal-body">
+          <div className="retailers-table-container">
+            <table className="retailers-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Retailer & Shop</th>
+                  <th>Mobile Number</th>
+                  <th>Registration Day & Date</th>
+                  <th>Exact Time</th>
+                  <th>Business Address</th>
+                  <th>Orders Placed</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, index) => {
+                  const reg = formatRegDetails(r.CreatedDate);
+                  const initial = (r.RetailerName || r.ShopName || "R")[0].toUpperCase();
+
+                  return (
+                    <tr key={r.MobileNumber || r._id || index}>
+                      <td>
+                        <strong>#{index + 1}</strong>
+                      </td>
+                      <td>
+                        <div className="retailer-profile-cell">
+                          <div className="retailer-avatar">{initial}</div>
+                          <div>
+                            <div className="retailer-name-title">{r.RetailerName}</div>
+                            <div className="retailer-shop-sub">
+                              <Store size={12} /> {r.ShopName}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <strong>{r.MobileNumber}</strong>
+                      </td>
+                      <td>
+                        <span className="reg-day-badge">{reg.dayDate}</span>
+                        {reg.relative && <div className="reg-relative-time">{reg.relative}</div>}
+                      </td>
+                      <td>
+                        <div className="reg-time-badge"><Clock3 size={11} style={{ display: "inline", marginRight: "3px" }} />{reg.time}</div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: "12px", color: "#476053" }}>{r.Address}</span>
+                      </td>
+                      <td>
+                        <span className="orders-placed-pill">
+                          <PackageCheck size={13} /> {r.totalOrders || 0} Orders
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="danger"
+                          style={{ padding: "6px 10px", fontSize: "12px" }}
+                          onClick={() => onDeleteRetailer(r.MobileNumber, r.RetailerName)}
+                          title="Delete retailer account"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--muted)" }}>
+                      {loading ? "Loading retailer records..." : "No registered retailers found matching your search."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FruitForm({ form, setForm, onSubmit, editing, onCancel, busy, notice }) {
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });
 
@@ -333,9 +508,37 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
     } catch {}
   };
 
+  const [retailersList, setRetailersList] = useState([]);
+  const [retailersLoading, setRetailersLoading] = useState(false);
+  const [showRetailersModal, setShowRetailersModal] = useState(false);
+
+  const fetchRetailers = async () => {
+    setRetailersLoading(true);
+    try {
+      const data = await request("/retailers");
+      setRetailersList(data || []);
+    } catch (err) {
+      // Silently handle
+    } finally {
+      setRetailersLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchSchedulerStatus();
+    fetchRetailers();
   }, []);
+
+  const handleDeleteRetailer = async (mobile, name) => {
+    if (!window.confirm(`Are you sure you want to delete retailer account for ${name} (${mobile})?`)) return;
+    try {
+      await request(`/retailers/${mobile}`, { method: "DELETE" });
+      notice(`Retailer ${name} deleted successfully.`);
+      fetchRetailers();
+    } catch (err) {
+      notice(err.message, true);
+    }
+  };
 
   const triggerAutoTest = async (slot) => {
     try {
@@ -537,7 +740,7 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
   const reset = () => { setEditing(null); setForm(blankFruit); };
   const save = async (event) => { event.preventDefault(); setBusy(true); try { await request(`/fruits${editing ? `/${editing.FruitID}` : ""}`, { method: editing ? "PUT" : "POST", body: JSON.stringify(form) }); notice(editing ? "Fruit updated for all retailers." : "Fruit added to the live catalog."); reset(); refresh(); } catch (error) { notice(error.message, true); } finally { setBusy(false); } };
   const remove = async (fruit) => { if (!window.confirm(`Remove ${fruit.FruitName} from the live catalog?`)) return; try { await request(`/fruits/${fruit.FruitID}`, { method: "DELETE" }); notice("Fruit removed from the live catalog."); refresh(); } catch (error) { notice(error.message, true); } };
-  const registerRetailer = async (event) => { event.preventDefault(); setRetailerBusy(true); try { await request("/retailers", { method: "POST", body: JSON.stringify(retailer) }); notice("Retailer registered. They can now login with their mobile number and password."); setRetailer({ mobileNumber: "", retailerName: "", shopName: "", address: "", password: "" }); } catch (error) { notice(error.message, true); } finally { setRetailerBusy(false); } };
+  const registerRetailer = async (event) => { event.preventDefault(); setRetailerBusy(true); try { await request("/retailers", { method: "POST", body: JSON.stringify(retailer) }); notice("Retailer registered. They can now login with their mobile number and password."); setRetailer({ mobileNumber: "", retailerName: "", shopName: "", address: "", password: "" }); fetchRetailers(); } catch (error) { notice(error.message, true); } finally { setRetailerBusy(false); } };
   
   const resetUserPassword = async (event) => {
     event.preventDefault();
@@ -616,7 +819,7 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
 
   const boxCount = fruits.reduce((total, fruit) => total + Number(fruit.AvailableQuantity || 0), 0);
   return <main className="page"><div className="page-head"><div><Pill>Admin workspace</Pill><h1>Manage the <em>live fruit catalog.</em></h1><p>Every change is saved in the database and appears to retailers instantly.</p></div></div>
-    <div className="metrics"><Metric icon={<Package />} label="Fruit lots" value={fruits.length} note="Active in catalog" /><Metric icon={<Box />} label="Available boxes" value={boxCount} note="Across all fruits" /><Metric icon={<Sparkles />} label="Offer Banners" value={banners.length} note="Live on homepage" /><Metric icon={<PackageCheck />} label="Source" value="DB" note="Shared inventory" /></div>
+    <div className="metrics"><Metric icon={<Package />} label="Fruit lots" value={fruits.length} note="Active in catalog" /><Metric icon={<Box />} label="Available boxes" value={boxCount} note="Across all fruits" /><Metric icon={<Users />} label="Registered Retailers" value={retailersList.length} note="Click for registration log" onClick={() => setShowRetailersModal(true)} active={showRetailersModal} /><Metric icon={<Sparkles />} label="Offer Banners" value={banners.length} note="Live on homepage" /></div>
     <div className="manage-grid"><section className="panel"><PanelTitle title={editing ? `Editing ${editing.FruitID}` : "Add a new fruit"} sub="Required fields become a new database record" /><FruitForm form={form} setForm={setForm} onSubmit={save} editing={editing} onCancel={reset} busy={busy} notice={notice} /></section>
       <section className="panel">
         <PanelTitle title="Live inventory" sub={loading ? "Refreshing..." : `${fruits.length} items in DB`} />
@@ -886,10 +1089,37 @@ function Admin({ user, fruits, setFruits, loading, banners, refreshBanners, requ
     </div>
 
     <div className="manage-grid" style={{ marginTop: "24px" }}>
-      <section className="panel retailer-registration"><PanelTitle title="Register a retailer" sub="Creates a new account" /><form className="fruit-form retailer-form" onSubmit={registerRetailer}><label>Mobile number<input required pattern="[0-9]{10}" maxLength="10" value={retailer.mobileNumber} onChange={(event) => setRetailer({ ...retailer, mobileNumber: event.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" /></label><label>Retailer name<input required value={retailer.retailerName} onChange={(event) => setRetailer({ ...retailer, retailerName: event.target.value })} placeholder="Owner name" /></label><label>Shop name<input required value={retailer.shopName} onChange={(event) => setRetailer({ ...retailer, shopName: event.target.value })} placeholder="Shop name" /></label><label>Address<input required value={retailer.address} onChange={(event) => setRetailer({ ...retailer, address: event.target.value })} placeholder="Business address" /></label><label>Password<input required type="password" value={retailer.password} onChange={(event) => setRetailer({ ...retailer, password: event.target.value })} placeholder="Initial Password" /></label><div className="form-actions"><button disabled={retailerBusy} className="primary">Register retailer <Users size={16} /></button></div></form></section>
+      <section className="panel retailer-registration">
+        <PanelTitle title="Register a retailer" sub="Creates a new account" />
+        <button
+          type="button"
+          className="outline"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "12px", marginTop: "12px", width: "100%", padding: "10px" }}
+          onClick={() => setShowRetailersModal(true)}
+        >
+          <Users size={15} /> View Registered Retailers Log & Timestamps ({retailersList.length})
+        </button>
+        <form className="fruit-form retailer-form" onSubmit={registerRetailer} style={{ marginTop: "14px" }}>
+          <label>Mobile number<input required pattern="[0-9]{10}" maxLength="10" value={retailer.mobileNumber} onChange={(event) => setRetailer({ ...retailer, mobileNumber: event.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" /></label>
+          <label>Retailer name<input required value={retailer.retailerName} onChange={(event) => setRetailer({ ...retailer, retailerName: event.target.value })} placeholder="Owner name" /></label>
+          <label>Shop name<input required value={retailer.shopName} onChange={(event) => setRetailer({ ...retailer, shopName: event.target.value })} placeholder="Shop name" /></label>
+          <label>Address<input required value={retailer.address} onChange={(event) => setRetailer({ ...retailer, address: event.target.value })} placeholder="Business address" /></label>
+          <label>Password<input required type="password" value={retailer.password} onChange={(event) => setRetailer({ ...retailer, password: event.target.value })} placeholder="Initial Password" /></label>
+          <div className="form-actions"><button disabled={retailerBusy} className="primary">Register retailer <Users size={16} /></button></div>
+        </form>
+      </section>
       
       <section className="panel retailer-registration"><PanelTitle title="Reset Retailer Password" sub="Assign a new password to a retailer" /><form className="fruit-form retailer-form" onSubmit={resetUserPassword}><label>Retailer Mobile Number<input required pattern="[0-9]{10}" maxLength="10" value={resetData.targetMobileNumber} onChange={(event) => setResetData({ ...resetData, targetMobileNumber: event.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" /></label><label>New Password<input required type="password" value={resetData.newPassword} onChange={(event) => setResetData({ ...resetData, newPassword: event.target.value })} placeholder="New Password" /></label><label>Confirm Admin Password<input required type="password" value={resetData.adminPassword} onChange={(event) => setResetData({ ...resetData, adminPassword: event.target.value })} placeholder="Your Admin Password" /></label><div className="form-actions"><button disabled={resetBusy} className="primary">Reset Password</button></div></form></section>
     </div>
+
+    {showRetailersModal && (
+      <RegisteredRetailersModal
+        retailers={retailersList}
+        loading={retailersLoading}
+        onClose={() => setShowRetailersModal(false)}
+        onDeleteRetailer={handleDeleteRetailer}
+      />
+    )}
   </main>;
 }
 
@@ -998,6 +1228,7 @@ const formatOrderDateTime = (dateStr) => {
 
 function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, onUpdateStatus }) {
   const [statusFilter, setStatusFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -1019,9 +1250,22 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    if (statusFilter === "All") return sortedOrders;
-    return sortedOrders.filter(o => o.Status === statusFilter);
-  }, [sortedOrders, statusFilter]);
+    let result = sortedOrders;
+    if (statusFilter !== "All") {
+      result = result.filter(o => o.Status === statusFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(o =>
+        String(o.OrderID || "").toLowerCase().includes(q) ||
+        String(o.RetailerName || "").toLowerCase().includes(q) ||
+        String(o.ShopName || "").toLowerCase().includes(q) ||
+        String(o.FruitName || "").toLowerCase().includes(q) ||
+        String(o.RetailerMobileNumber || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [sortedOrders, statusFilter, searchQuery]);
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
 
@@ -1093,6 +1337,35 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
         title={statusFilter === "All" ? "All Orders" : `${statusFilter} Orders`}
         sub={loading ? "Loading orders..." : `${filteredOrders.length} orders found ${statusFilter !== "All" ? `(Filtered by ${statusFilter})` : "(Sorted by Date & Time)"}`}
       />
+
+      {/* Instant Search Bar */}
+      <div className="orders-search-wrapper" style={{ marginTop: "12px" }}>
+        <div className="orders-search-input-box">
+          <Search size={18} color="#526359" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search orders by Order ID (#ORD00099), Retailer name, Shop name, or Fruit name..."
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="orders-search-clear-btn"
+              onClick={() => {
+                setSearchQuery("");
+                setCurrentPage(1);
+              }}
+              title="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="order-status-tabs">
         <button
@@ -1195,6 +1468,7 @@ function Orders({ request, notice, orders, loadOrders, loading, onSelectOrder, o
 
 function RetailerOrders({ user, request, notice, orders, loadOrders, loading, onSelectOrder }) {
   const [statusFilter, setStatusFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -1223,9 +1497,22 @@ function RetailerOrders({ user, request, notice, orders, loadOrders, loading, on
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    if (statusFilter === "All") return sortedOrders;
-    return sortedOrders.filter(o => o.Status === statusFilter);
-  }, [sortedOrders, statusFilter]);
+    let result = sortedOrders;
+    if (statusFilter !== "All") {
+      result = result.filter(o => o.Status === statusFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(o =>
+        String(o.OrderID || "").toLowerCase().includes(q) ||
+        String(o.RetailerName || "").toLowerCase().includes(q) ||
+        String(o.ShopName || "").toLowerCase().includes(q) ||
+        String(o.FruitName || "").toLowerCase().includes(q) ||
+        String(o.RetailerMobileNumber || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [sortedOrders, statusFilter, searchQuery]);
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
 
@@ -1288,6 +1575,35 @@ function RetailerOrders({ user, request, notice, orders, loadOrders, loading, on
           title={statusFilter === "All" ? "Your Order History" : `${statusFilter} Orders`}
           sub={loading ? "Refreshing..." : `${filteredOrders.length} orders total ${statusFilter !== "All" ? `(Filtered by ${statusFilter})` : ""}`}
         />
+
+        {/* Instant Search Bar */}
+        <div className="orders-search-wrapper" style={{ marginTop: "12px" }}>
+          <div className="orders-search-input-box">
+            <Search size={18} color="#526359" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search your orders by Order ID (#ORD00099) or Fruit name..."
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="orders-search-clear-btn"
+                onClick={() => {
+                  setSearchQuery("");
+                  setCurrentPage(1);
+                }}
+                title="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
         
         <div className="order-status-tabs">
           <button
@@ -1938,12 +2254,19 @@ function App() {
   const checkout = async () => {
     if (cart.length === 0) return;
     try {
-      for (const { fruit, quantity } of cart) {
-        await request("/orders", { 
-          method: "POST", 
-          body: JSON.stringify({ retailerMobile: user.mobileNumber, fruitId: fruit.FruitID, quantity }) 
-        });
-      }
+      const itemsPayload = cart.map(({ fruit, quantity }) => ({
+        fruitId: fruit.FruitID,
+        quantity
+      }));
+
+      await request("/orders", { 
+        method: "POST", 
+        body: JSON.stringify({
+          retailerMobile: user.mobileNumber,
+          items: itemsPayload
+        }) 
+      });
+
       setCart([]);
       try { localStorage.removeItem("fruitlane_cart"); } catch {}
       setCartOpen(false);
@@ -2118,10 +2441,14 @@ function App() {
           notification={mobilePushNotif}
           onClose={() => setMobilePushNotif(null)}
           onAction={() => {
-            setPage("market");
-            window.setTimeout(() => {
-              document.querySelector("#catalog")?.scrollIntoView({ behavior: "smooth" });
-            }, 100);
+            if (mobilePushNotif?.deepLink === "my-orders" || mobilePushNotif?.type?.startsWith("ORDER_")) {
+              setPage(user?.role === "Admin" ? "delivery" : "my-orders");
+            } else {
+              setPage("market");
+              window.setTimeout(() => {
+                document.querySelector("#catalog")?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            }
           }}
         />
       )}

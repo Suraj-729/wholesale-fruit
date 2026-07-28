@@ -1,5 +1,6 @@
 import Retailer from "../models/Retailer.js";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
 import { badRequest, notFoundError } from "../middleware/errorHandler.js";
 
 function retailerInput(body) {
@@ -11,8 +12,26 @@ function retailerInput(body) {
 
 export async function listRetailers(req, res) {
   const query = req.query.search?.toLowerCase().trim();
-  const rows = await Retailer.find();
-  res.json(rows.filter((retailer) => !query || `${retailer.MobileNumber} ${retailer.RetailerName} ${retailer.ShopName}`.toLowerCase().includes(query)));
+  const rows = await Retailer.find().sort({ CreatedDate: -1 });
+
+  const orders = await Order.find({}, "RetailerMobileNumber");
+  const orderCountMap = {};
+  orders.forEach(o => {
+    if (o.RetailerMobileNumber) {
+      orderCountMap[o.RetailerMobileNumber] = (orderCountMap[o.RetailerMobileNumber] || 0) + 1;
+    }
+  });
+
+  const enriched = rows.map(r => ({
+    ...r.toObject(),
+    totalOrders: orderCountMap[r.MobileNumber] || 0
+  }));
+
+  const filtered = enriched.filter((retailer) => 
+    !query || `${retailer.MobileNumber} ${retailer.RetailerName} ${retailer.ShopName} ${retailer.Address}`.toLowerCase().includes(query)
+  );
+
+  res.json(filtered);
 }
 
 export async function createRetailer(req, res) {
