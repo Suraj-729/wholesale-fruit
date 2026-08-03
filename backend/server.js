@@ -145,13 +145,18 @@ async function ensureSeedData() {
 }
 
 if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI)
+  mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000
+  })
     .then(() => {
       console.log("Connected to MongoDB Atlas");
       ensureSeedData();
       initPushScheduler(app);
     })
-    .catch((err) => console.error("Could not connect to MongoDB:", err));
+    .catch((err) => {
+      console.error("Could not connect to MongoDB Atlas:", err.message);
+      console.error("Please check: 1. Is your IP whitelisted in MongoDB Atlas? 2. Is MONGODB_URI correct in .env?");
+    });
 } else {
   console.warn("MONGODB_URI is missing in environment variables!");
 }
@@ -171,8 +176,27 @@ app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(morgan("dev"));
 
-// API routes
-app.get("/api/health", (_req, res) => res.json({ status: "ok", storage: "mongodb-atlas" }));
+// API routes health check
+app.get("/api/health", (_req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  res.status(isConnected ? 200 : 503).json({
+    status: isConnected ? "ok" : "error",
+    database: isConnected ? "connected" : "disconnected",
+    storage: "mongodb-atlas"
+  });
+});
+
+// Middleware to check MongoDB connection before executing database queries
+app.use("/api", (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: "Database connection failed. Mongoose is not connected to MongoDB Atlas. Please check your IP whitelist and MONGODB_URI in backend/.env"
+    });
+  }
+  next();
+});
+
 app.use("/api", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/fruits", fruitRoutes);
